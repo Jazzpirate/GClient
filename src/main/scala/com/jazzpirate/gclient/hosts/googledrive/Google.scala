@@ -15,7 +15,7 @@ import com.jazzpirate.gclient.Settings.settingsFolder
 import com.jazzpirate.gclient.fuse.FileNonExistent
 import com.jazzpirate.gclient.hosts.{Account, CloudDirectory, CloudFile, Host}
 import com.jazzpirate.gclient.ui.NewAccount
-import com.jazzpirate.utils.DownloadBuffer
+import com.jazzpirate.utils.{DownloadBuffer, NoInternet}
 import info.kwarc.mmt.api.utils.{File, OSystem, URI}
 import javax.swing.{JPanel, JTextField}
 
@@ -138,12 +138,15 @@ class GDrive(val account_name : String) extends Account(Google) {
 
   lazy val service = new Drive.Builder(Google.httpTransport,Google.jsonfac,Google.getCredentials(account_name)).setApplicationName(Google.application_name).build()
 
-  lazy val (user_email,rootID,total_space) = {
+  lazy val (user_email,rootID,total_space) = try {
     val about = service.about().get().setFields("user(displayName,emailAddress), storageQuota(limit)").execute()
     val id = service.files().get("root").setFields("id").execute().getId
     val limit : Long = if (about.getStorageQuota == null || about.getStorageQuota.getLimit == null) 0 else about.getStorageQuota.getLimit
     // val used: Long = about.getStorageQuota.getUsage
     (about.getUser.getEmailAddress,id,limit)
+  } catch {
+    case t:java.net.UnknownHostException =>
+      throw NoInternet
   }
 
   override def used_space: Long = {

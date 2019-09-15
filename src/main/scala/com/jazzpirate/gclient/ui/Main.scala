@@ -10,6 +10,7 @@ import scala.jdk.CollectionConverters._
 import com.jazzpirate.gclient.Settings
 import com.jazzpirate.gclient.hosts.Host
 import com.jazzpirate.gclient.service.{Server, Service}
+import com.jazzpirate.utils.NoInternet
 import javax.swing.{ButtonGroup, JFrame, JOptionPane, JPanel, JRadioButton, WindowConstants}
 
 object Main extends MainJava {
@@ -75,13 +76,8 @@ object Main extends MainJava {
       hosts_pane.setViewportView(b)
       b.setVisible(true)
     }
-    try {
-      Settings.settings.getAccounts.foreach { ac =>
-        tabbed.addTab(ac.account_name, new AccountForm(ac).main_panel)
-      }
-    } catch {
-      case t:Throwable =>
-        JOptionPane.showMessageDialog(mainPanel,t.getMessage + "\n\n" + t.getStackTrace.toList.mkString("\n"),"Error",0)
+    Settings.settings.getAccounts.foreach { ac =>
+      tabbed.addTab(ac.account_name, new AccountForm(ac).main_panel)
     }
     btn_add.addActionListener(new ActionListener {
       override def actionPerformed(e: ActionEvent): Unit = {
@@ -105,4 +101,30 @@ object Main extends MainJava {
     init
     _frame.pack()
   }
+
+  object ExceptionHandler {
+    def registerExceptionHandler: Unit = {
+      Thread.setDefaultUncaughtExceptionHandler(new ExceptionHandler)
+      System.setProperty("sun.awt.exception.handler", classOf[ExceptionHandler].getName)
+    }
+  }
+
+  class ExceptionHandler extends Thread.UncaughtExceptionHandler {
+    override def uncaughtException(t: Thread, e: Throwable): Unit = {
+      handle(e)
+    }
+
+    def handle(throwable: Throwable): Unit = throwable match {
+      case NoInternet =>
+        JOptionPane.showMessageDialog(mainPanel,"Can not reach cloud host\nInternet connection required!","Error",0)
+        System.exit(0)
+      case e:java.security.PrivilegedActionException =>
+        handle(e.getException)
+      case e:java.util.concurrent.ExecutionException =>
+        handle(e.getCause)
+      case t:Throwable =>
+        JOptionPane.showMessageDialog(mainPanel,t.getMessage + "\n\n" + t.getStackTrace.toList.mkString("\n"),"Error",0)
+    }
+  }
+  ExceptionHandler.registerExceptionHandler
 }

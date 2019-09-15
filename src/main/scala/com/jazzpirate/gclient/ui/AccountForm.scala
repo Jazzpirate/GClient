@@ -73,24 +73,25 @@ class FolderNode(index:Int,depth:Int,acc:Account,path:String*) extends DefaultMu
 
   def loadChildren(model: DefaultTreeModel): Unit = if (!loaded) {
     val worker = new SwingWorker[List[FolderNode], Unit] {
-      override def doInBackground:List[FolderNode] = {
+      override def doInBackground: List[FolderNode] = {
         var i = -1
         val ret = dir.children.collect {
-          case d:CloudDirectory =>
-            i+=1
-            new FolderNode(i,depth+1,acc,path.toList ::: List(d.name) :_*)
+          case d: CloudDirectory =>
+            i += 1
+            new FolderNode(i, depth + 1, acc, path.toList ::: List(d.name): _*)
         }
         ret.foreach(children.add)
         ret
       }
 
       override def done(): Unit = {
-          setChildren(get());
-          model.nodeStructureChanged(self);
+        setChildren(get());
+        model.nodeStructureChanged(self);
         super.done()
       }
     }
-    worker.execute();
+    worker.execute()
+
   }
 }
 /*
