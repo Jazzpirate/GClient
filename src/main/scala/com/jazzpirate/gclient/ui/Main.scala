@@ -1,6 +1,7 @@
 package com.jazzpirate.gclient.ui
 
 import java.awt.Dimension
+import java.awt.TrayIcon.MessageType
 import java.awt.event.{ActionEvent, ActionListener}
 
 import com.intellij.uiDesigner.core.GridConstraints
@@ -9,7 +10,7 @@ import scala.jdk.CollectionConverters._
 import com.jazzpirate.gclient.Settings
 import com.jazzpirate.gclient.hosts.Host
 import com.jazzpirate.gclient.service.{Server, Service}
-import javax.swing.{ButtonGroup, JFrame, JPanel, JRadioButton, WindowConstants}
+import javax.swing.{ButtonGroup, JFrame, JOptionPane, JPanel, JRadioButton, WindowConstants}
 
 object Main extends MainJava {
   private var _socket :Server = _
@@ -74,8 +75,13 @@ object Main extends MainJava {
       hosts_pane.setViewportView(b)
       b.setVisible(true)
     }
-    Settings.settings.getAccounts.foreach { ac =>
-      tabbed.addTab(ac.account_name,new AccountForm(ac).main_panel)
+    try {
+      Settings.settings.getAccounts.foreach { ac =>
+        tabbed.addTab(ac.account_name, new AccountForm(ac).main_panel)
+      }
+    } catch {
+      case t:Throwable =>
+        JOptionPane.showMessageDialog(mainPanel,t.getMessage + "\n\n" + t.getStackTrace.toList.mkString("\n"),"Error",0)
     }
     btn_add.addActionListener(new ActionListener {
       override def actionPerformed(e: ActionEvent): Unit = {
@@ -96,6 +102,7 @@ object Main extends MainJava {
   def getBack(self:JPanel) = {
     mainPanel.remove(self)
     tabbed.setVisible(true)
+    init
     _frame.pack()
   }
 }

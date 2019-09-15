@@ -65,7 +65,7 @@ class GoogleSettings(gfile:File) extends AbstractSettings(gfile) {
   def getPort = getJson.getAsInt("port").toInt
 }
 
-class GDrive(user : String) extends Account(Google) {
+class GDrive(val account_name : String) extends Account(Google) {
   import com.google.api.services.drive.{Drive, model}
 
   private val this_account = this
@@ -136,14 +136,14 @@ class GDrive(user : String) extends Account(Google) {
     private val filemap : mutable.HashMap[model.File,GoogleFile] = mutable.HashMap.empty
   }
 
-  lazy val service = new Drive.Builder(Google.httpTransport,Google.jsonfac,Google.getCredentials(user)).setApplicationName(Google.application_name).build()
+  lazy val service = new Drive.Builder(Google.httpTransport,Google.jsonfac,Google.getCredentials(account_name)).setApplicationName(Google.application_name).build()
 
-  lazy val (account_name,user_email,rootID,total_space) = {
+  lazy val (user_email,rootID,total_space) = {
     val about = service.about().get().setFields("user(displayName,emailAddress), storageQuota(limit)").execute()
     val id = service.files().get("root").setFields("id").execute().getId
     val limit : Long = if (about.getStorageQuota == null || about.getStorageQuota.getLimit == null) 0 else about.getStorageQuota.getLimit
     // val used: Long = about.getStorageQuota.getUsage
-    (about.getUser.getDisplayName,about.getUser.getEmailAddress,id,limit)
+    (about.getUser.getEmailAddress,id,limit)
   }
 
   override def used_space: Long = {
