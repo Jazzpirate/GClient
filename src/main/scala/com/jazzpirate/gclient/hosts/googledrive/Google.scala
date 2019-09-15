@@ -14,17 +14,24 @@ import com.jazzpirate.gclient.{AbstractSettings, Settings}
 import com.jazzpirate.gclient.Settings.settingsFolder
 import com.jazzpirate.gclient.fuse.FileNonExistent
 import com.jazzpirate.gclient.hosts.{Account, CloudDirectory, CloudFile, Host}
+import com.jazzpirate.gclient.ui.NewAccount
 import com.jazzpirate.utils.DownloadBuffer
 import info.kwarc.mmt.api.utils.{File, OSystem, URI}
-import javax.swing.JPanel
+import javax.swing.{JPanel, JTextField}
 
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 
 object Google extends Host {
+  val credentials_path = "google_credentials.json"
+  val application_name = "GClient"
+  val scopes = List(DriveScopes.DRIVE)
   val id = "gdrive"
   val name = "Google Drive/Photos"
+  lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
+  lazy val jsonfac = JacksonFactory.getDefaultInstance
+
   lazy val settings: GoogleSettings = {
     val sf = settingsFolder / "gdrive.json"
     if (!sf.exists()) {
@@ -35,7 +42,23 @@ object Google extends Host {
     new GoogleSettings(sf)
   }
 
-  override def getAddAccountPanel: JPanel = (new AddAcountForm).addpanel
+  def token_dir(user:String) = Settings.settingsFolder / user / "tokens"
+
+  override def getAddAccountPanel(parent:NewAccount): JPanel = (new AddAccountForm(parent)).addpanel
+  def getAccount(name:String) = new GDrive(name)
+
+  def getCredentials(user:String) = try {
+    val cred = OSystem.getResource(Google.credentials_path)
+    val clientSecrets = GoogleClientSecrets.load(jsonfac,new InputStreamReader(cred))
+    val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport,jsonfac,clientSecrets:GoogleClientSecrets,scopes.asJava)
+      .setDataStoreFactory(new FileDataStoreFactory(token_dir(user))).setAccessType("offline").build()
+    val receiver = new LocalServerReceiver.Builder().setPort(Google.settings.getPort).build()
+    new AuthorizationCodeInstalledApp(flow,receiver).authorize("user")
+  } catch {
+    case t:Throwable =>
+      println(t)
+      ???
+  }
 }
 
 class GoogleSettings(gfile:File) extends AbstractSettings(gfile) {
@@ -44,14 +67,6 @@ class GoogleSettings(gfile:File) extends AbstractSettings(gfile) {
 
 class GDrive(user : String) extends Account(Google) {
   import com.google.api.services.drive.{Drive, model}
-
-  private val credentials_path = "google_credentials.json"
-  private val application_name = "GClient"
-  private val scopes = List(DriveScopes.DRIVE)
-  private val token_dir = Settings.settingsFolder / user / "tokens"
-
-  private lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
-  private lazy val jsonfac = JacksonFactory.getDefaultInstance
 
   private val this_account = this
 
@@ -121,9 +136,9 @@ class GDrive(user : String) extends Account(Google) {
     private val filemap : mutable.HashMap[model.File,GoogleFile] = mutable.HashMap.empty
   }
 
-  lazy val service = new Drive.Builder(httpTransport,jsonfac,getCredentials).setApplicationName(application_name).build()
+  lazy val service = new Drive.Builder(Google.httpTransport,Google.jsonfac,Google.getCredentials(user)).setApplicationName(Google.application_name).build()
 
-  lazy val (user_name,user_email,rootID,total_space) = {
+  lazy val (account_name,user_email,rootID,total_space) = {
     val about = service.about().get().setFields("user(displayName,emailAddress), storageQuota(limit)").execute()
     val id = service.files().get("root").setFields("id").execute().getId
     val limit : Long = if (about.getStorageQuota == null || about.getStorageQuota.getLimit == null) 0 else about.getStorageQuota.getLimit
@@ -152,19 +167,6 @@ class GDrive(user : String) extends Account(Google) {
       override val id: String = ""
       override lazy val name = user_email
       override val children: List[GoogleFile] = List(trash,shared,myDrive)
-  }
-
-  private def getCredentials = try {
-    val cred = OSystem.getResource(credentials_path)
-    val clientSecrets = GoogleClientSecrets.load(jsonfac,new InputStreamReader(cred))
-    val flow = new GoogleAuthorizationCodeFlow.Builder(httpTransport,jsonfac,clientSecrets:GoogleClientSecrets,scopes.asJava)
-      .setDataStoreFactory(new FileDataStoreFactory(token_dir)).setAccessType("offline").build()
-    val receiver = new LocalServerReceiver.Builder().setPort(Google.settings.getPort).build()
-    new AuthorizationCodeInstalledApp(flow,receiver).authorize("user")
-  } catch {
-    case t:Throwable =>
-      println(t)
-      ???
   }
 
   private def getList = service.files().list().setPageSize(100)

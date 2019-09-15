@@ -1,16 +1,18 @@
 package com.jazzpirate.gclient.hosts
 
-import javax.swing.JPanel
+import com.jazzpirate.gclient.ui.NewAccount
+import javax.swing.{JPanel, JTextField}
 
 abstract class Host {
   val id :String
   val name:String
-  def getAddAccountPanel :JPanel
+  def getAddAccountPanel(parent:NewAccount) :JPanel
+  def getAccount(account_name:String)
 }
 
 abstract class Account(val host:Host) {
 
-  def user_name : String
+  def account_name : String
   def total_space: Long
   def used_space:Long
 

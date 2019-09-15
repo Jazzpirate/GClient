@@ -2,7 +2,7 @@ package com.jazzpirate.gclient
 
 import com.jazzpirate.gclient.hosts.Host
 import com.jazzpirate.gclient.hosts.googledrive.Google
-import info.kwarc.mmt.api.utils.{File, JSON, JSONObject, JSONString, OS, OSystem}
+import info.kwarc.mmt.api.utils.{File, JSON, JSONArray, JSONObject, JSONString, OS, OSystem}
 
 object Settings {
   lazy val settingsFolder: File = {
@@ -38,8 +38,19 @@ abstract class AbstractSettings(settings_file:File) {
 }
 
 class Settings(settings_file:File) extends AbstractSettings(settings_file) {
-
   def getTimer: Int = getJson.getAsInt("timer").toInt
   def getChunksize: Int = getJson.getAsInt("chunksize").toInt
   def getServicePort: Int = getJson.getAsInt("service_port").toInt
+  def getAccounts = getJson.getAsList(classOf[JSONObject],"accounts").map {jo =>
+    val name = jo.getAsString("name")
+    val host = Settings.hosts.find(_.id == jo.getAsString("host")).getOrElse{
+      ???
+    }
+    host.getAccount(name)
+  }
+  def addAccount(name:String,host:Host) = {
+    val all = getJson.getAsList(classOf[JSONObject],"accounts")
+    val nl =JSONObject(("name",JSONString(name)),("host",JSONString(host.id))) :: all
+    update("accounts",JSONArray(nl:_*))
+  }
 }

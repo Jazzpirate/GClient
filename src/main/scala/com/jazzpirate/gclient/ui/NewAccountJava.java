@@ -13,7 +13,7 @@ public class NewAccountJava {
     public JButton btn_back;
     public JScrollPane scroll_pane;
     private JTextField accountNameTextField;
-    private JTextField nameTextField;
+    public JTextField nameTextField;
     public JPanel top_panel;
     public JPanel replacepanel;
 

@@ -51,6 +51,16 @@ object Main extends MainJava {
 
   def init: Unit = {
     socket
+    // reset
+    hosts_pane.getComponents.foreach {
+      case h: HostButton => hosts_pane.remove(h)
+      case _ =>
+    }
+    buttongroup.getElements.asScala.foreach(buttongroup.remove)
+    no_hosts_available.setVisible(true)
+    btn_add.getActionListeners.foreach(btn_add.removeActionListener)
+
+    // fill
     if(!socket.killed) clientBox.setSelected(true)
     if (Settings.hosts.nonEmpty) no_hosts_available.setVisible(false)
     Settings.hosts.foreach{h =>
@@ -68,7 +78,7 @@ object Main extends MainJava {
             ???
         }
         tabbedPane1.setVisible(false)
-        val hostpanel = new NewAccount(host.getAddAccountPanel)
+        val hostpanel = new NewAccount(host)
         mainPanel.add(hostpanel.top_panel, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(200, 200), null, 0, false))
         hostpanel.top_panel.setVisible(true)
         _frame.pack()
