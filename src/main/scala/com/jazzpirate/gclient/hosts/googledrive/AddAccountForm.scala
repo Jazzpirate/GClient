@@ -23,7 +23,7 @@ class AddAccountForm(parent:NewAccount) extends AddAcountFormJava {
         case 0 =>
           Google.getCredentials(name)
           Settings.settings.addAccount(name,Google)
-          Main.getBack(parent.top_panel)
+          Main.getBack(Some(parent.top_panel))
           // do something
         case _ =>
       }

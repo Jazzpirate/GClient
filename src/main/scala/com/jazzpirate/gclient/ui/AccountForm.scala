@@ -1,10 +1,15 @@
 package com.jazzpirate.gclient.ui
 
+import java.awt.FileDialog
+import java.awt.event.{ActionEvent, ActionListener}
 import java.beans.{PropertyChangeListener, Transient}
 
+import com.jazzpirate.gclient.{Mount, Settings}
 import com.jazzpirate.gclient.hosts.{Account, CloudDirectory}
+import com.jazzpirate.gclient.ui.Main.mainPanel
+import info.kwarc.mmt.api.utils.File
 import javax.swing.event.{TreeExpansionEvent, TreeSelectionEvent, TreeSelectionListener, TreeWillExpandListener}
-import javax.swing.{JTree, SwingWorker}
+import javax.swing.{JFrame, JOptionPane, JTree, SwingUtilities, SwingWorker}
 import javax.swing.tree.{DefaultMutableTreeNode, DefaultTreeModel}
 
 class AccountForm(acc:Account) extends AccountJava {
@@ -44,9 +49,42 @@ class AccountForm(acc:Account) extends AccountJava {
       // btn_sync.setEnabled(true)
     }
   })
+
+  btn_mount.addActionListener(new ActionListener {
+    def actionPerformed(e:ActionEvent) = {
+      val cloud_path = folder_tree.getSelectionPath.getLastPathComponent.asInstanceOf[FolderNode].path
+      import javax.swing.JFileChooser
+      val chooser = new JFileChooser
+      // chooser.setCurrentDirectory(new File("."))
+      chooser.setDialogTitle("Choose empty folder")
+      chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY)
+      chooser.setAcceptAllFileFilterUsed(false)
+
+      if (chooser.showOpenDialog(treePane) == JFileChooser.APPROVE_OPTION) {
+        val dir = File(chooser.getSelectedFile)
+        if (dir.children.isEmpty) {
+          Settings.settings.addSync(Mount(acc.account_name, dir, cloud_path.toList))
+          Main.getBack(None)
+        } else {
+          JOptionPane.showMessageDialog(mainPanel,"Directory must be empty!","Error",0)
+        }
+      }
+      /*
+      val diag = new FileDialog(SwingUtilities.getWindowAncestor(treePane).asInstanceOf[JFrame])
+      diag.setVisible(true)
+      while (diag.isVisible) {
+        Thread.sleep(100)
+      }
+      if (diag.get)
+      val file = File(diag.getFile)
+      val dir = if (file.isDirectory) file else file.up
+
+       */
+    }
+  })
 }
 
-class FolderNode(index:Int,depth:Int,acc:Account,path:String*) extends DefaultMutableTreeNode {
+class FolderNode(index:Int,depth:Int,acc:Account,val path:String*) extends DefaultMutableTreeNode {
   private var loaded = false
   lazy val dir = acc.getFile(path:_*) match {
     case cf:CloudDirectory => cf

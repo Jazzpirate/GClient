@@ -13,7 +13,7 @@ object Settings {
   lazy val settings: Settings = {
     val sf = settingsFolder / "settings.json"
     if (!sf.exists()) {
-      val str = OSystem.getResourceAsString("/default.json")
+      val str = OSystem.getResourceAsString("/default_settings.json")
       File.write(sf,str)
     }
     // JSON.parse(File.read(sf))
@@ -53,4 +53,61 @@ class Settings(settings_file:File) extends AbstractSettings(settings_file) {
     val nl =JSONObject(("name",JSONString(name)),("host",JSONString(host.id))) :: all
     update("accounts",JSONArray(nl:_*))
   }
+  def addSync(s:Sync) = s match {
+    case Mount(acc,file,cpath) =>
+      val all = getJson.getAsList(classOf[JSONObject],"mounts")
+      val nall = JSONObject(
+        ("account",JSONString(acc)),
+        ("local_path",JSONString(file.toString)),
+        ("cloud_path",JSONString(cpath.mkString("/","/","")))) :: all
+      update("mounts",JSONArray(nall:_*))
+    case SyncedFolder(acc,file,cpath) =>
+      val all = getJson.getAsList(classOf[JSONObject],"syncs")
+      val nall = JSONObject(
+        ("account",JSONString(acc)),
+        ("local_path",JSONString(file.toString)),
+        ("cloud_path",JSONString(cpath.mkString("/","/","")))) :: all
+      update("syncs",JSONArray(nall:_*))
+  }
+  def removeSync(s:Sync) = s match {
+    case Mount(acc,file,cpath) =>
+      val all = getJson.getAsList(classOf[JSONObject],"mounts")
+      val self = all.find{o =>
+        (o("account") contains JSONString(acc)) && (o("local_path") contains JSONString(file.toString)) &&
+          (o("cloud_path") contains JSONString(cpath.mkString("/","/","")))
+      }
+      val nall = all.filter(!self.contains(_))
+      update("mounts",JSONArray(nall:_*))
+    case SyncedFolder(acc,file,cpath) =>
+      val all = getJson.getAsList(classOf[JSONObject],"syncs")
+      val self = all.find{o =>
+        (o("account") contains JSONString(acc)) && (o("local_path") contains JSONString(file.toString)) &&
+          (o("cloud_path") contains JSONString(cpath.mkString("/","/","")))
+      }
+      val nall = all.filter(!self.contains(_))
+      update("syncs",JSONArray(nall:_*))
+  }
+
+  def getMounts : List[Mount] = {
+    val all = getJson.getAsList(classOf[JSONObject],"mounts")
+    all.map { mount =>
+      val acc = mount.getAsString("account")
+      val local_path = mount.getAsString("local_path")
+      val cloud_path = mount.getAsString("cloud_path").split('/')
+      Mount(acc,File(local_path),cloud_path.toList)
+    }
+  }
+  def getSyncs : List[SyncedFolder] = {
+    val all = getJson.getAsList(classOf[JSONObject],"syncs")
+    all.map { mount =>
+      val acc = mount.getAsString("account")
+      val local_path = mount.getAsString("local_path")
+      val cloud_path = mount.getAsString("local_path").split('/')
+      SyncedFolder(acc,File(local_path),cloud_path.toList)
+    }
+  }
 }
+
+trait Sync
+case class Mount(account_id:String,local_path:File,cloud_path:List[String]) extends Sync
+case class SyncedFolder(account_id:String,local_path:File,cloud_path:List[String]) extends Sync

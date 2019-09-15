@@ -10,7 +10,7 @@ import scala.jdk.CollectionConverters._
 import com.jazzpirate.gclient.Settings
 import com.jazzpirate.gclient.hosts.Host
 import com.jazzpirate.gclient.service.{Server, Service}
-import com.jazzpirate.utils.NoInternet
+import com.jazzpirate.utils.{ExceptionHandler, NoInternet}
 import javax.swing.{ButtonGroup, JFrame, JOptionPane, JPanel, JRadioButton, WindowConstants}
 
 object Main extends MainJava {
@@ -29,10 +29,11 @@ object Main extends MainJava {
         Service.main(args.tail)
       case _ =>
         _frame = new JFrame("GClient")
+        _frame.setSize(1024,768)
         init
         _frame.setContentPane(mainPanel)
         _frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
-        _frame.pack()
+        //_frame.pack()
         _frame.setVisible(true)
     }
     print("")
@@ -58,8 +59,13 @@ object Main extends MainJava {
       case h: HostButton => hosts_pane.remove(h)
       case _ =>
     }
+    connected_pane.getComponents.foreach {
+      case t if t == no_syncs_connected =>
+      case t => connected_pane.remove(t)
+    }
     buttongroup.getElements.asScala.foreach(buttongroup.remove)
     no_hosts_available.setVisible(true)
+    no_syncs_connected.setVisible(true)
     btn_add.getActionListeners.foreach(btn_add.removeActionListener)
     tabbed.getComponents.foreach {
       case t if t == tab_main =>
@@ -68,6 +74,14 @@ object Main extends MainJava {
 
     // fill
     if(!socket.killed) clientBox.setSelected(true)
+
+    val syncs = Settings.settings.getMounts ::: Settings.settings.getSyncs
+    if (syncs.nonEmpty) no_syncs_connected.setVisible(false)
+    syncs.zipWithIndex.foreach {case (s,i) =>
+      val sf = new SyncForm(s)
+      connected_pane.add(sf.panel,new GridConstraints(i, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(200, 200), null, 0, false))
+    }
+
     if (Settings.hosts.nonEmpty) no_hosts_available.setVisible(false)
     Settings.hosts.foreach{h =>
       val b =new HostButton(h)
@@ -90,41 +104,17 @@ object Main extends MainJava {
         val hostpanel = new NewAccount(host)
         mainPanel.add(hostpanel.top_panel, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(200, 200), null, 0, false))
         hostpanel.top_panel.setVisible(true)
-        _frame.pack()
+        //_frame.pack()
       }
     })
   }
 
-  def getBack(self:JPanel) = {
-    mainPanel.remove(self)
+  def getBack(self:Option[JPanel]) = {
+    self.foreach(mainPanel.remove)
     tabbed.setVisible(true)
     init
-    _frame.pack()
+    //_frame.pack()
   }
 
-  object ExceptionHandler {
-    def registerExceptionHandler: Unit = {
-      Thread.setDefaultUncaughtExceptionHandler(new ExceptionHandler)
-      System.setProperty("sun.awt.exception.handler", classOf[ExceptionHandler].getName)
-    }
-  }
-
-  class ExceptionHandler extends Thread.UncaughtExceptionHandler {
-    override def uncaughtException(t: Thread, e: Throwable): Unit = {
-      handle(e)
-    }
-
-    def handle(throwable: Throwable): Unit = throwable match {
-      case NoInternet =>
-        JOptionPane.showMessageDialog(mainPanel,"Can not reach cloud host\nInternet connection required!","Error",0)
-        System.exit(0)
-      case e:java.security.PrivilegedActionException =>
-        handle(e.getException)
-      case e:java.util.concurrent.ExecutionException =>
-        handle(e.getCause)
-      case t:Throwable =>
-        JOptionPane.showMessageDialog(mainPanel,t.getMessage + "\n\n" + t.getStackTrace.toList.mkString("\n"),"Error",0)
-    }
-  }
   ExceptionHandler.registerExceptionHandler
 }

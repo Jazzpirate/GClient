@@ -12,7 +12,7 @@ public class MainJava {
     public JTextField GClientTextField;
     public JTabbedPane tabbed;
     public JCheckBox clientBox;
-    public JScrollPane connected_pane;
+    public JPanel connected_pane;
     public JTextField connectedSyncsTextField;
     public JTextField addAccountTextField;
     public JScrollPane hosts_pane;
@@ -52,13 +52,16 @@ public class MainJava {
         clientBox.setSelected(false);
         this.$$$loadButtonText$$$(clientBox, ResourceBundle.getBundle("strings").getString("service_running"));
         tab_main.add(clientBox, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        connected_pane = new JScrollPane();
-        tab_main.add(connected_pane, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        final JScrollPane scrollPane1 = new JScrollPane();
+        tab_main.add(scrollPane1, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        connected_pane = new JPanel();
+        connected_pane.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
+        scrollPane1.setViewportView(connected_pane);
         no_syncs_connected = new JTextField();
         no_syncs_connected.setEditable(false);
         no_syncs_connected.setEnabled(false);
         no_syncs_connected.setText(ResourceBundle.getBundle("strings").getString("none_connected"));
-        connected_pane.setViewportView(no_syncs_connected);
+        connected_pane.add(no_syncs_connected, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
         connectedSyncsTextField = new JTextField();
         connectedSyncsTextField.setEditable(false);
         connectedSyncsTextField.setText(ResourceBundle.getBundle("strings").getString("connected_syncs"));

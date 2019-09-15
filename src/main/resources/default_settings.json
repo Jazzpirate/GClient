@@ -2,5 +2,7 @@
   "timer":10000,
   "chunksize": 2048,
   "service_port": 4444,
-  "accounts": []
+  "accounts": [],
+  "mounts": [],
+  "syncs": []
 }

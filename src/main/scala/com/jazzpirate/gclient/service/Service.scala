@@ -3,7 +3,7 @@ package com.jazzpirate.gclient.service
 import java.net.ServerSocket
 
 import com.jazzpirate.gclient.Settings
-import com.jazzpirate.utils.SocketClient
+import com.jazzpirate.utils.{ExceptionHandler, SocketClient}
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits._
@@ -26,4 +26,6 @@ object Service {
   } finally {
     clients.foreach(_.kill)
   }
+
+  ExceptionHandler.registerExceptionHandler
 }

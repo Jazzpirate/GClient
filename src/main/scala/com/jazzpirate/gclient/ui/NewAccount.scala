@@ -9,7 +9,7 @@ import javax.swing.JPanel
 
 class NewAccount(host:Host) extends NewAccountJava {
   btn_back.addActionListener(new ActionListener {
-    override def actionPerformed(e: ActionEvent): Unit = Main.getBack(top_panel)
+    override def actionPerformed(e: ActionEvent): Unit = Main.getBack(Some(top_panel))
   })
   scroll_pane.remove(replacepanel)
   val hostpanel = host.getAddAccountPanel(this)
