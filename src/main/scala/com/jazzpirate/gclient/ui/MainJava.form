@@ -19,7 +19,7 @@
           <text value="GClient" noi18n="true"/>
         </properties>
       </component>
-      <tabbedpane id="7a568" binding="tabbedPane1" default-binding="true">
+      <tabbedpane id="7a568" binding="tabbed">
         <constraints>
           <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false">
             <preferred-size width="200" height="200"/>
@@ -28,7 +28,7 @@
         <properties/>
         <border type="none"/>
         <children>
-          <grid id="28409" layout-manager="GridLayoutManager" row-count="6" column-count="1" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
+          <grid id="28409" binding="tab_main" layout-manager="GridLayoutManager" row-count="6" column-count="1" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
             <margin top="0" left="0" bottom="0" right="0"/>
             <constraints>
               <tabbedpane title-resource-bundle="strings" title-key="main"/>

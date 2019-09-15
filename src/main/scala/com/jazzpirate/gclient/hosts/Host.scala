@@ -7,7 +7,7 @@ abstract class Host {
   val id :String
   val name:String
   def getAddAccountPanel(parent:NewAccount) :JPanel
-  def getAccount(account_name:String)
+  def getAccount(account_name:String):Account
 }
 
 abstract class Account(val host:Host) {

@@ -1,6 +1,6 @@
 package com.jazzpirate.gclient
 
-import com.jazzpirate.gclient.hosts.Host
+import com.jazzpirate.gclient.hosts.{Account, Host}
 import com.jazzpirate.gclient.hosts.googledrive.Google
 import info.kwarc.mmt.api.utils.{File, JSON, JSONArray, JSONObject, JSONString, OS, OSystem}
 
@@ -41,7 +41,7 @@ class Settings(settings_file:File) extends AbstractSettings(settings_file) {
   def getTimer: Int = getJson.getAsInt("timer").toInt
   def getChunksize: Int = getJson.getAsInt("chunksize").toInt
   def getServicePort: Int = getJson.getAsInt("service_port").toInt
-  def getAccounts = getJson.getAsList(classOf[JSONObject],"accounts").map {jo =>
+  def getAccounts : List[Account] = getJson.getAsList(classOf[JSONObject],"accounts").map {jo =>
     val name = jo.getAsString("name")
     val host = Settings.hosts.find(_.id == jo.getAsString("host")).getOrElse{
       ???

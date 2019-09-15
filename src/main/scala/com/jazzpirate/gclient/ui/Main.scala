@@ -59,6 +59,10 @@ object Main extends MainJava {
     buttongroup.getElements.asScala.foreach(buttongroup.remove)
     no_hosts_available.setVisible(true)
     btn_add.getActionListeners.foreach(btn_add.removeActionListener)
+    tabbed.getComponents.foreach {
+      case t if t == tab_main =>
+      case t => tabbed.remove(t)
+    }
 
     // fill
     if(!socket.killed) clientBox.setSelected(true)
@@ -70,6 +74,9 @@ object Main extends MainJava {
       hosts_pane.setViewportView(b)
       b.setVisible(true)
     }
+    Settings.settings.getAccounts.foreach { ac =>
+      tabbed.addTab(ac.account_name,new AccountForm(ac).main_panel)
+    }
     btn_add.addActionListener(new ActionListener {
       override def actionPerformed(e: ActionEvent): Unit = {
         val host = buttongroup.getElements.asScala.find(_.isSelected) match {
@@ -77,7 +84,7 @@ object Main extends MainJava {
           case _ =>
             ???
         }
-        tabbedPane1.setVisible(false)
+        tabbed.setVisible(false)
         val hostpanel = new NewAccount(host)
         mainPanel.add(hostpanel.top_panel, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(200, 200), null, 0, false))
         hostpanel.top_panel.setVisible(true)
@@ -88,7 +95,7 @@ object Main extends MainJava {
 
   def getBack(self:JPanel) = {
     mainPanel.remove(self)
-    tabbedPane1.setVisible(true)
+    tabbed.setVisible(true)
     _frame.pack()
   }
 }
