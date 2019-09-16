@@ -3,6 +3,7 @@ package com.jazzpirate.gclient.ui
 import java.awt.Dimension
 import java.awt.TrayIcon.MessageType
 import java.awt.event.{ActionEvent, ActionListener}
+import java.util.concurrent.ForkJoinPool
 
 import com.intellij.uiDesigner.core.GridConstraints
 
@@ -10,14 +11,46 @@ import scala.jdk.CollectionConverters._
 import com.jazzpirate.gclient.Settings
 import com.jazzpirate.gclient.hosts.Host
 import com.jazzpirate.gclient.service.{Server, Service}
+import com.jazzpirate.gclient.ui.Main._socket
 import com.jazzpirate.utils.{ExceptionHandler, NoInternet}
+import info.kwarc.mmt.api.utils.RunJavaClass
 import javax.swing.{ButtonGroup, JFrame, JOptionPane, JPanel, JRadioButton, WindowConstants}
 
+import scala.concurrent.{ExecutionContext, Future}
+
 object Main extends MainJava {
+  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(new ForkJoinPool(100))
+
   private var _socket :Server = _
-  def socket = synchronized {
-    if (_socket == null || !_socket.killed) _socket = new Server(Settings.settings.getServicePort)
-    _socket
+  def socket : Server = {
+      if (synchronized {_socket} == null) {
+        val ns = newSocket
+        synchronized{_socket = ns}
+      }
+      _socket
+  }
+
+  private def runService = {
+    val ret = RunJavaClass("com.jazzpirate.gclient.service.Service",List("await")).start()
+    /*
+    val th = new Thread() {
+      override def run(): Unit = Service.main(Array("await"))
+    }
+    th.start()
+     */
+    println(ret)
+  }
+
+  private def newSocket = {
+    var server = new Server(Settings.settings.getServicePort)
+    if (server.socket == null) {
+      runService
+    }
+    while (server.socket == null) {
+      Thread.sleep(100)
+      server = new Server(Settings.settings.getServicePort)
+    }
+    server
   }
 
   private var _frame :JFrame = _
@@ -29,7 +62,7 @@ object Main extends MainJava {
         Service.main(args.tail)
       case _ =>
         _frame = new JFrame("GClient")
-        _frame.setSize(1024,768)
+        _frame.setSize(768,1024)
         init
         _frame.setContentPane(mainPanel)
         _frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
@@ -55,6 +88,8 @@ object Main extends MainJava {
   def init: Unit = {
     socket
     // reset
+    btn_stop.setEnabled(false)
+    clientBox.setSelected(false)
     hosts_pane.getComponents.foreach {
       case h: HostButton => hosts_pane.remove(h)
       case _ =>
@@ -73,7 +108,10 @@ object Main extends MainJava {
     }
 
     // fill
-    if(!socket.killed) clientBox.setSelected(true)
+    if(!socket.killed) {
+      clientBox.setSelected(true)
+      btn_stop.setEnabled(true)
+    }
 
     val syncs = Settings.settings.getMounts ::: Settings.settings.getSyncs
     if (syncs.nonEmpty) no_syncs_connected.setVisible(false)
@@ -117,4 +155,11 @@ object Main extends MainJava {
   }
 
   ExceptionHandler.registerExceptionHandler
+  btn_stop.addActionListener(new ActionListener {
+    def actionPerformed(e:ActionEvent) = {
+      socket.killServer
+      Thread.sleep(100)
+      init
+    }
+  })
 }

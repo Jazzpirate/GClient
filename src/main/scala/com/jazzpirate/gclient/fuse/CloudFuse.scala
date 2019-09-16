@@ -16,7 +16,7 @@ object FileNonExistent extends Throwable
 class CloudFuse(account:Account,root:List[String],id:String,mountFolder:File) extends FuseStubFS {
   def mountCloud = {
     if (!mountFolder.exists()) mountFolder.mkdirs()
-    mount(Paths.get(mountFolder.toString),true,true)
+    mount(Paths.get(mountFolder.toString),true,false)
   }
   private def get(path:String) = account.getFile(root ::: path.split('/').toList :_*)
 

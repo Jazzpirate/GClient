@@ -39,7 +39,9 @@ abstract class SocketServer(port:Int) extends MySocket {
       null
   }
 
-  def onKill
+  def onKill = synchronized{
+    _killed = true
+  }
 
   private var _killed = false
   def killed = synchronized{
