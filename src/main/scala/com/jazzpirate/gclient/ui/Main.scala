@@ -20,6 +20,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object Main extends MainJava {
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(new ForkJoinPool(100))
+  val debug = true
 
   private var _socket :Server = _
   def socket : Server = {
@@ -31,14 +32,15 @@ object Main extends MainJava {
   }
 
   private def runService = {
-    val ret = RunJavaClass("com.jazzpirate.gclient.service.Service",List("await")).start()
-    /*
-    val th = new Thread() {
-      override def run(): Unit = Service.main(Array("await"))
+    if (debug) {
+      val th = new Thread() {
+        override def run(): Unit = Service.main(Array("await"))
+      }
+      th.start()
+    } else {
+      val ret = RunJavaClass("com.jazzpirate.gclient.service.Service", List("await")).start()
+      println(ret)
     }
-    th.start()
-     */
-    println(ret)
   }
 
   private def newSocket = {
@@ -62,7 +64,7 @@ object Main extends MainJava {
         Service.main(args.tail)
       case _ =>
         _frame = new JFrame("GClient")
-        _frame.setSize(768,1024)
+        _frame.setSize(600,600)
         init
         _frame.setContentPane(mainPanel)
         _frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)

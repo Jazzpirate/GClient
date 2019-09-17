@@ -19,6 +19,10 @@ abstract class Account(val host:Host) {
   def root : CloudDirectory
 
   def getFile(path:String*):CloudFile
+  def createFile(path:String*):CloudFile
+  def rename(newname:List[String],path:String*):CloudFile
+  def delete(path : String*) : Unit
+  def write(off:Long,content:Array[Byte],path:String*) : Long
 }
 
 abstract class CloudFile {

@@ -110,7 +110,7 @@ class DownloadBuffer(name:String,maxsize:Long,getStream:Long => (InputStream,Uni
       (gotten ::: get(isize-gotten.length,offset+gotten.length).toList).toArray
     } else fullarr.slice(newoffset.toInt,isize.toInt)
     //println(name + " " + offset + " - " + isize)
-    println(name + " Chunk " + chunk + ": newoffset: " + newoffset + " return: " + present(ret))
+    // println(name + " Chunk " + chunk + ": newoffset: " + newoffset + " return: " + present(ret))
     ret
   }
 }

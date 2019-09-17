@@ -41,11 +41,11 @@ object Service {
       Thread.sleep(100)
     }
     Settings.settings.getMounts.foreach {
-      case Mount(acc_id,local,cloud) =>
+      case m@Mount(acc_id,local,cloud) =>
         val account = Settings.settings.getAccounts.find(_.account_name==acc_id).getOrElse {
           ???
         }
-        val id = acc_id.hashCode + local.hashCode() + cloud.hashCode()
+        val id = m.hashCode()
         val fuse = new CloudFuse(account,cloud,id.toString,local)
         mounts::= fuse
         fuse.mountCloud

@@ -27,13 +27,18 @@ object Settings {
 }
 
 abstract class AbstractSettings(settings_file:File) {
-  protected def getJson = JSON.parse(File.read(settings_file)).asInstanceOf[JSONObject]
+  val sf = settings_file
+  if (!sf.exists()) sf.mkdirs()
+  sf
+  private var _json = JSON.parse(File.read(settings_file)).asInstanceOf[JSONObject]
+  protected def getJson = _json
   protected def update(key:String,value:JSON) = synchronized {
     val nmap = getJson.map.map {
       case (JSONString(`key`),_) => (JSONString(key),value)
       case p => p
     }
     File.write(settings_file,JSONObject(nmap).toString)
+    _json = JSONObject(nmap)
   }
 }
 

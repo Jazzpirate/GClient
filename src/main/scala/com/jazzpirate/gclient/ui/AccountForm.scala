@@ -9,10 +9,13 @@ import com.jazzpirate.gclient.hosts.{Account, CloudDirectory}
 import com.jazzpirate.gclient.ui.Main.mainPanel
 import info.kwarc.mmt.api.utils.File
 import javax.swing.event.{TreeExpansionEvent, TreeSelectionEvent, TreeSelectionListener, TreeWillExpandListener}
-import javax.swing.{JFrame, JOptionPane, JTree, SwingUtilities, SwingWorker}
+import javax.swing.{Icon, JFrame, JOptionPane, JTree, SwingUtilities, SwingWorker}
 import javax.swing.tree.{DefaultMutableTreeNode, DefaultTreeModel}
+import jnr.ffi.Platform
 
 class AccountForm(acc:Account) extends AccountJava {
+  private val drive_letters = List("D:","E:","F:","G:","H:","I:","J:","K:","L:","M:","N:","O:","P:","Q:","R:","S:","T:","U:","V:","W:","X:","Y:","Z:")
+      .toArray
   account_name.setText(acc.account_name)
   treePane.remove(folder_tree)
   val root = new FolderNode(1, 0,acc)
@@ -53,20 +56,31 @@ class AccountForm(acc:Account) extends AccountJava {
   btn_mount.addActionListener(new ActionListener {
     def actionPerformed(e:ActionEvent) = {
       val cloud_path = folder_tree.getSelectionPath.getLastPathComponent.asInstanceOf[FolderNode].path
-      import javax.swing.JFileChooser
-      val chooser = new JFileChooser
-      // chooser.setCurrentDirectory(new File("."))
-      chooser.setDialogTitle("Choose empty folder")
-      chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY)
-      chooser.setAcceptAllFileFilterUsed(false)
-
-      if (chooser.showOpenDialog(treePane) == JFileChooser.APPROVE_OPTION) {
-        val dir = File(chooser.getSelectedFile)
-        if (dir.children.isEmpty) {
-          Settings.settings.addSync(Mount(acc.account_name, dir, cloud_path.toList))
+      if (Platform.getNativePlatform.getOS == Platform.OS.WINDOWS) {
+        val valids = drive_letters.filter(f => !File(f).exists()).map(_.asInstanceOf[Object])
+        import scala.jdk.CollectionConverters._
+        val dir = JOptionPane.showInputDialog(mainPanel,"Pick a drive letter:","Mount Directory",
+          JOptionPane.PLAIN_MESSAGE,null.asInstanceOf[Icon],valids,"D:")
+        if (dir!=null) {
+          Settings.settings.addSync(Mount(acc.account_name, File(dir.asInstanceOf[String] + "\\\\"), cloud_path.toList))
           Main.getBack(None)
-        } else {
-          JOptionPane.showMessageDialog(mainPanel,"Directory must be empty!","Error",0)
+        }
+      } else {
+        import javax.swing.JFileChooser
+        val chooser = new JFileChooser
+        // chooser.setCurrentDirectory(new File("."))
+        chooser.setDialogTitle("Choose empty folder")
+        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY)
+        chooser.setAcceptAllFileFilterUsed(false)
+
+        if (chooser.showOpenDialog(treePane) == JFileChooser.APPROVE_OPTION) {
+          val dir = File(chooser.getSelectedFile)
+          if (dir.children.isEmpty) {
+            Settings.settings.addSync(Mount(acc.account_name, dir, cloud_path.toList))
+            Main.getBack(None)
+          } else {
+            JOptionPane.showMessageDialog(mainPanel, "Directory must be empty!", "Error", 0)
+          }
         }
       }
       /*
