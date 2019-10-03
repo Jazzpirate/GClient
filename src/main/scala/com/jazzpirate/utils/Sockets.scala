@@ -3,9 +3,6 @@ package com.jazzpirate.utils
 import java.io.{BufferedReader, InputStreamReader, PrintWriter}
 import java.net.Socket
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits._
-
 trait MySocket {
   val socket : Socket
   protected lazy val in = new BufferedReader(new InputStreamReader(socket.getInputStream))
@@ -22,7 +19,7 @@ abstract class SocketClient(val socket:Socket) extends MySocket {
     _killed = true
   }
 
-  Future {
+  NewThread {
     while(!synchronized{_killed}) {
       val inp = in.readLine()
       if (inp == null) kill else process(inp)
@@ -50,7 +47,7 @@ abstract class SocketServer(port:Int) extends MySocket {
 
   socket
 
-  Future {
+  NewThread {
     while(!_killed) {
       val inp = in.readLine()
       if (inp == null) {

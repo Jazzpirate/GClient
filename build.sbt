@@ -5,10 +5,13 @@ version := "0.1"
 scalaVersion := "2.13.0"
 
 libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.13.0"
+libraryDependencies += "org.scala-lang" % "scala-library" % "2.13.0"
 libraryDependencies += "org.scala-lang.modules" %% "scala-xml" % "1.2.0"
 libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
 
 libraryDependencies += "commons-io" % "commons-io" % "2.6"
+
+libraryDependencies += "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2"
 
 libraryDependencies += "com.google.api-client" % "google-api-client" % "1.30.2"
 libraryDependencies += "com.google.oauth-client" % "google-oauth-client-jetty" % "1.30.1"

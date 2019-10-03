@@ -8,6 +8,7 @@ import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInsta
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver
 import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeFlow, GoogleClientSecrets}
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.googleapis.media.MediaHttpUploader
 import com.google.api.client.http.{ByteArrayContent, GenericUrl, HttpContent}
 import com.google.api.client.json.jackson2.JacksonFactory
@@ -19,12 +20,12 @@ import com.jazzpirate.gclient.Settings.settingsFolder
 import com.jazzpirate.gclient.fuse.FileNonExistent
 import com.jazzpirate.gclient.hosts.{Account, CloudDirectory, CloudFile, Host}
 import com.jazzpirate.gclient.ui.NewAccount
-import com.jazzpirate.utils.{DownloadBuffer, NoInternet}
+import com.jazzpirate.utils.{DownloadBuffer, NewThread, NoInternet}
 import info.kwarc.mmt.api.utils.{File, OSystem, URI}
+import javax.net.ssl.SSLHandshakeException
 import javax.swing.{JPanel, JTextField}
 
 import scala.collection.mutable
-import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 
 object Google extends Host {
@@ -33,7 +34,6 @@ object Google extends Host {
   val scopes = List(DriveScopes.DRIVE)
   val id = "gdrive"
   val name = "Google Drive/Photos"
-  lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
   lazy val jsonfac = JacksonFactory.getDefaultInstance
 
   lazy val settings: GoogleSettings = {
@@ -50,6 +50,8 @@ object Google extends Host {
 
   override def getAddAccountPanel(parent:NewAccount): JPanel = (new AddAccountForm(parent)).addpanel
   def getAccount(name:String) = new GDrive(name)
+
+  lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
 
   def getCredentials(user:String) = try {
     val cred = OSystem.getResource(Google.credentials_path)
@@ -75,6 +77,9 @@ class GDrive(val account_name : String) extends Account(Google) {
   private val this_account = this
   private lazy val token = Google.getCredentials(account_name)
 
+  lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
+  lazy val service = new Drive.Builder(httpTransport,Google.jsonfac,token).setApplicationName(Google.application_name).build()
+
   class GoogleFile(val file:model.File) extends CloudFile {
     // var last_time = System.nanoTime()
     protected def touch = {} // last_time = System.nanoTime()
@@ -82,7 +87,11 @@ class GDrive(val account_name : String) extends Account(Google) {
     def id = {touch ; file.getId}
     val account = this_account
     def size = {touch; file.getSize}
-    private lazy val reader = new DownloadBuffer(name,size,{offset =>
+
+    lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
+    lazy val service = new Drive.Builder(httpTransport,Google.jsonfac,token).setApplicationName(Google.application_name).build()
+
+    private lazy val reader = new DownloadBuffer(name,{offset =>
       val request = service.getRequestFactory.buildGetRequest(new GenericUrl(download_url.toString))
       request.getHeaders.setRange("bytes="+offset+"-"+size)
       val response = request.execute()
@@ -99,7 +108,7 @@ class GDrive(val account_name : String) extends Account(Google) {
     // var upload_url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable"
     // private var up_offset = 0
     // private var buffer = 0
-    def write(off:Long,size:Long,chunk:Array[Byte],total:Long): Long = synchronized {
+    def write(off:Long,size:Long,chunk:Array[Byte],total:Long): Long = {
       val request = service.files().update(id,new model.File,new ByteArrayContent(null,chunk,off.toInt,size.toInt))
         .set("uploadType","resumable")
       val response = request.execute()
@@ -163,14 +172,16 @@ class GDrive(val account_name : String) extends Account(Google) {
   }
   private object GFile {
     private lazy val _mydrive = service.files().get(rootID).setFields("name,id,properties").execute()
-    def myDrive = filemap.getOrElseUpdate(_mydrive,{
-      new GoogleDirectory(_mydrive) {
-        override def name: String = "MyDrive"
-      }
-    }).asInstanceOf[GoogleDirectory]
-    def getChildren(dir:GoogleDirectory) = childrenmap.getOrElseUpdate(dir,{
+    def myDrive = synchronized {
+      filemap.getOrElseUpdate(_mydrive, {
+        new GoogleDirectory(_mydrive) {
+          override def name: String = "MyDrive"
+        }
+      }).asInstanceOf[GoogleDirectory]
+    }
+    def getChildren(dir:GoogleDirectory) = synchronized { childrenmap.getOrElseUpdate(dir,{
       browseStd(dir)
-    })
+    }) }
     def remove(key:model.File) = synchronized{
       filemap.remove(key) match {
         case Some(dir:GoogleDirectory) => childrenmap.remove(dir)
@@ -205,10 +216,10 @@ class GDrive(val account_name : String) extends Account(Google) {
 
     import scala.concurrent.ExecutionContext.Implicits._
     private var startPageToken : String = _
-    Future {
+    NewThread {
       startPageToken = service.changes().getStartPageToken.execute().getStartPageToken
       while(startPageToken != null) {
-        Thread.sleep(Settings.settings.getTimer)
+        Thread.sleep(10 * Settings.timer)
         val changes = service.changes().list(startPageToken).execute()
         val files = changes.getChanges.asScala.toList.map(_.getFileId)
         if (files.nonEmpty) synchronized{
@@ -227,9 +238,8 @@ class GDrive(val account_name : String) extends Account(Google) {
     }
   }
 
-  lazy val service = new Drive.Builder(Google.httpTransport,Google.jsonfac,token).setApplicationName(Google.application_name).build()
 
-  lazy val (user_email,rootID,total_space) = try {
+  lazy val (user_email,rootID,total_space) = synchronized { try {
     val about = service.about().get().setFields("user(displayName,emailAddress), storageQuota(limit)").execute()
     val id = service.files().get("root").setFields("id").execute().getId
     val limit : Long = if (about.getStorageQuota == null || about.getStorageQuota.getLimit == null) 0 else about.getStorageQuota.getLimit
@@ -238,7 +248,7 @@ class GDrive(val account_name : String) extends Account(Google) {
   } catch {
     case t:java.net.UnknownHostException =>
       throw NoInternet
-  }
+  } }
 
   override def used_space: Long = {
     service.about().get().setFields("storageQuota(usage)").execute().getStorageQuota.getUsage
@@ -266,7 +276,7 @@ class GDrive(val account_name : String) extends Account(Google) {
   private def getList = service.files().list().setPageSize(100)
     .setCorpora("allDrives").setIncludeItemsFromAllDrives(true).setSupportsAllDrives(true).setFields("nextPageToken, files(id,name,mimeType,size,trashed,kind,parents)")
 
-  private def getFiles(command: Drive#Files#List => Drive#Files#List) = synchronized {
+  private def getFiles(command: Drive#Files#List => Drive#Files#List) = {
     val list = command(getList)
     var results : List[GoogleFile] = Nil
     var curr = list.execute()
@@ -377,7 +387,7 @@ class GDrive(val account_name : String) extends Account(Google) {
     case FileNonExistent => throw FileNonExistent
     case t:Throwable =>
       t.printStackTrace()
-      ???
+      throw t
   }
 
   private def getFileIt(curr:GoogleDirectory,rest:List[String]) : GoogleFile = try {
@@ -393,6 +403,7 @@ class GDrive(val account_name : String) extends Account(Google) {
     }
   } catch {
     case FileNonExistent => throw FileNonExistent
+      throw NoInternet
     case t:Throwable =>
       t.printStackTrace()
       ???

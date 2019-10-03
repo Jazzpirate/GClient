@@ -20,7 +20,7 @@ object Settings {
     new Settings(sf)
   }
   // val mountFolder = settingsFolder / "mount"
-  def timer: Int = settings.getTimer
+  def timer: Long = settings.getTimer
   def chunksize: Int = settings.getChunksize
 
   lazy val hosts: List[Host] = List(Google)
@@ -43,7 +43,7 @@ abstract class AbstractSettings(settings_file:File) {
 }
 
 class Settings(settings_file:File) extends AbstractSettings(settings_file) {
-  def getTimer: Int = getJson.getAsInt("timer").toInt
+  def getTimer: Long = getJson.getAsInt("timer").toInt
   def getChunksize: Int = getJson.getAsInt("chunksize").toInt
   def getServicePort: Int = getJson.getAsInt("service_port").toInt
   def getAccounts : List[Account] = getJson.getAsList(classOf[JSONObject],"accounts").map {jo =>

@@ -11,15 +11,13 @@ import scala.jdk.CollectionConverters._
 import com.jazzpirate.gclient.Settings
 import com.jazzpirate.gclient.hosts.Host
 import com.jazzpirate.gclient.service.{Server, Service}
-import com.jazzpirate.gclient.ui.Main._socket
-import com.jazzpirate.utils.{ExceptionHandler, NoInternet}
+import com.jazzpirate.utils.{ExceptionHandler, NewThread, NoInternet}
 import info.kwarc.mmt.api.utils.RunJavaClass
 import javax.swing.{ButtonGroup, JFrame, JOptionPane, JPanel, JRadioButton, WindowConstants}
 
-import scala.concurrent.{ExecutionContext, Future}
 
 object Main extends MainJava {
-  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(new ForkJoinPool(100))
+  // implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(new ForkJoinPool(100))
   val debug = true
 
   private var _socket :Server = _
@@ -32,12 +30,8 @@ object Main extends MainJava {
   }
 
   private def runService = {
-    if (debug) {
-      val th = new Thread() {
-        override def run(): Unit = Service.main(Array("await"))
-      }
-      th.start()
-    } else {
+    if (debug) NewThread { Service.main(Array("await")) }
+    else {
       val ret = RunJavaClass("com.jazzpirate.gclient.service.Service", List("await")).start()
       println(ret)
     }
@@ -157,6 +151,7 @@ object Main extends MainJava {
   }
 
   ExceptionHandler.registerExceptionHandler
+
   btn_stop.addActionListener(new ActionListener {
     def actionPerformed(e:ActionEvent) = {
       socket.killServer

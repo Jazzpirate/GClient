@@ -1,9 +1,7 @@
 package com.jazzpirate.gclient.fuse
 
-import java.nio.ByteBuffer
 import java.nio.file.Paths
 
-import com.jazzpirate.gclient.Settings
 import com.jazzpirate.gclient.hosts.{Account, CloudDirectory, CloudFile}
 import info.kwarc.mmt.api.utils.File
 import jnr.ffi.Platform.OS.WINDOWS
@@ -11,9 +9,6 @@ import jnr.ffi.{Platform, Pointer}
 import jnr.ffi.types.{dev_t, gid_t, mode_t, off_t, size_t, u_int32_t, uid_t}
 import ru.serce.jnrfuse.{ErrorCodes, FuseFillDir, FuseStubFS, NotImplemented}
 import ru.serce.jnrfuse.struct.{FileStat, Flock, FuseBufvec, FuseFileInfo, FusePollhandle, Statvfs, Timespec}
-
-import scala.collection.mutable
-import scala.jdk.CollectionConverters._
 
 object FileNonExistent extends Throwable
 
@@ -86,6 +81,7 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
 
   override def read(path: String, buf: Pointer, @size_t size: Long, @off_t offset: Long, fi: FuseFileInfo) = {
     val file = getFromAccount(path)
+    println(Thread.currentThread().getName + " reads " + file.name + " " + offset + ": " + size + " (file size " + file.size + ")")
     val toRead = Math.min(file.size - offset, size).toInt
     val ret = file.read(toRead,offset)
     buf.put(0,ret,0,ret.length)
@@ -131,6 +127,7 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
       filter.apply(buf, ".", null, 0)
       filter.apply(buf, "..", null, 0)
       f.children.foreach((c: CloudFile) => filter.apply(buf, c.name, null, 0)) //(c => filter.apply(buf,c.name,null,0))
+      print("")
     } catch {
       case FileNonExistent =>
         return -ErrorCodes.ENOENT
