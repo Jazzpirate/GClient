@@ -103,11 +103,11 @@ class DownloadBuffer(name:String,getStream:Long => (InputStream,Unit=>Unit)) {
     .replace("\t","\\t").replace("\f","\\f").replace("\b","\\b")
 
   def get(size:Long,offset:Long):Array[Byte] = {
-    log("get from " + offset + ": " + size)
+    // log("get from " + offset + ": " + size)
     val chunkindex =  offset / chunksize
     val noff = offset - (chunkindex * chunksize)
     val ret = getI(chunkindex,noff.toInt,size).toArray
-    log(offset + ": " + size + " returns " + ret.length + " Bytes")
+    // log(offset + ": " + size + " returns " + ret.length + " Bytes")
     // Console.flush()
     ret
   }
@@ -125,7 +125,7 @@ class DownloadBuffer(name:String,getStream:Long => (InputStream,Unit=>Unit)) {
     def generate() = {
       val e = Entry(index,null,None)
       arraymap.put(index,e)
-      log("generate " + index)
+      // log("generate " + index)
       currentStream.foreach(_.close)
       val (s,c) = getStream(index*chunksize)
       val source = new TimedInputStream(s,c,0)
@@ -136,7 +136,7 @@ class DownloadBuffer(name:String,getStream:Long => (InputStream,Unit=>Unit)) {
       Thread.sleep(10)
     }
     def find() = {
-      (Math.max(index-10,0) to index).find{i =>
+      (Math.max(index-10,0) to index).findLast {i =>
         val e = arraymap.get(i)
         e != null && e.isAlive
       } match {
@@ -144,7 +144,7 @@ class DownloadBuffer(name:String,getStream:Long => (InputStream,Unit=>Unit)) {
           val s = arraymap.get(i)
           s.touch
           arraymap.put(i+1,Entry(i+1,s.source,Some(s.source.read)))
-          print(".")
+          // log("read " + (i+1))
           Thread.sleep(10)
         case None =>
           generate()
