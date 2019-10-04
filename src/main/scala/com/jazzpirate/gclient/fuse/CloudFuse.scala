@@ -3,6 +3,7 @@ package com.jazzpirate.gclient.fuse
 import java.nio.file.Paths
 
 import com.jazzpirate.gclient.hosts.{Account, CloudDirectory, CloudFile}
+import com.jazzpirate.gclient.ui.Main
 import info.kwarc.mmt.api.utils.File
 import jnr.ffi.Platform.OS.WINDOWS
 import jnr.ffi.{Platform, Pointer}
@@ -18,16 +19,16 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
     this.mount(Paths.get(this.mountFolder.toString), true, false)
   }
 
-  private def getFromAccount(path: String) = {
+  private def getFromAccount(path: List[String]) = {
     // val buffer = scala.collection.JavaConverters.asScalaBuffer(Arrays.asList(path.split("\\/")))
-    account.getFile(root ::: path.split("\\/").toList :_*)
+    account.getFile(path :_*)
   }
 
   private def getPath(path:String) = path match {
-    case _ if path.startsWith("/.Trash-1000/info") => "/.Trash" + path.drop("/.Trash-1000/info".length)
-    case _ if path.startsWith("/.Trash-1000/files") => "/.Trash" + path.drop("/.Trash-1000/files".length)
-    case _ if path.startsWith("/.Trash-1000") => "/.Trash" + path.drop("/.Trash-1000".length)
-    case _ => path
+    case _ if path.startsWith("/.Trash-1000/info") => ("/.Trash" + path.drop("/.Trash-1000/info".length)).split("\\/").toList
+    case _ if path.startsWith("/.Trash-1000/files") => ("/.Trash" + path.drop("/.Trash-1000/files".length)).split("\\/").toList
+    case _ if path.startsWith("/.Trash-1000") => ("/.Trash" + path.drop("/.Trash-1000".length)).split("\\/").toList
+    case _ => (root ::: path.split("\\/").toList).filter(_ != "")
   }
 
   override def getattr(opath: String, stat: FileStat): Int = {
@@ -69,7 +70,7 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
   }
 
   override def rename(path: String, newName: String) = {
-    account.rename(newName.split('/').toList,path.split('/'):_*)
+    account.rename(getPath(newName),getPath(path):_*)
     0
   }
 
@@ -77,10 +78,12 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
     0
   }
 
-  override def open(path: String, fi: FuseFileInfo) = 0
+  override def open(path: String, fi: FuseFileInfo) = {
+    0
+  }
 
   override def read(path: String, buf: Pointer, @size_t size: Long, @off_t offset: Long, fi: FuseFileInfo) = {
-    val file = getFromAccount(path)
+    val file = getFromAccount(getPath(path))
     println(Thread.currentThread().getName + " reads " + file.name + " " + offset + ": " + size + " (file size " + file.size + ")")
     val toRead = Math.min(file.size - offset, size).toInt
     val ret = file.read(toRead,offset)
@@ -92,7 +95,7 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
     //val maxWriteIndex = (offset + size).toInt
     val bytesToWrite = new Array[Byte](size.toInt)
     buf.get(0,bytesToWrite,0,size.toInt)
-    val ret = account.write(offset,bytesToWrite,path.split('/'):_*).toInt
+    val ret = account.write(offset,bytesToWrite,getPath(path):_*).toInt
     println(ret)
     ret
   } catch {
@@ -141,7 +144,7 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
   override def create(path: String, @mode_t mode: Long, fi: FuseFileInfo): Int = {
     if(path.startsWith("/.Trash-1000")) return 0
     try {
-      getFromAccount(path)
+      getFromAccount(getPath(path))
       -ErrorCodes.EEXIST()
     } catch {
       case FileNonExistent =>

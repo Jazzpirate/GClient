@@ -64,14 +64,14 @@ class Settings(settings_file:File) extends AbstractSettings(settings_file) {
       val nall = JSONObject(
         ("account",JSONString(acc)),
         ("local_path",JSONString(file.toString)),
-        ("cloud_path",JSONString(cpath.mkString("/","/","")))) :: all
+        ("cloud_path",JSONString(cpath.mkString("/")))) :: all
       update("mounts",JSONArray(nall:_*))
     case SyncedFolder(acc,file,cpath) =>
       val all = getJson.getAsList(classOf[JSONObject],"syncs")
       val nall = JSONObject(
         ("account",JSONString(acc)),
         ("local_path",JSONString(file.toString)),
-        ("cloud_path",JSONString(cpath.mkString("/","/","")))) :: all
+        ("cloud_path",JSONString(cpath.mkString("/")))) :: all
       update("syncs",JSONArray(nall:_*))
   }
   def removeSync(s:Sync) = s match {
@@ -79,7 +79,7 @@ class Settings(settings_file:File) extends AbstractSettings(settings_file) {
       val all = getJson.getAsList(classOf[JSONObject],"mounts")
       val self = all.find{o =>
         (o("account") contains JSONString(acc)) && (o("local_path") contains JSONString(file.toString)) &&
-          (o("cloud_path") contains JSONString(cpath.mkString("/","/","")))
+          (o("cloud_path") contains JSONString(cpath.mkString("/")))
       }
       val nall = all.filter(!self.contains(_))
       update("mounts",JSONArray(nall:_*))
@@ -87,7 +87,7 @@ class Settings(settings_file:File) extends AbstractSettings(settings_file) {
       val all = getJson.getAsList(classOf[JSONObject],"syncs")
       val self = all.find{o =>
         (o("account") contains JSONString(acc)) && (o("local_path") contains JSONString(file.toString)) &&
-          (o("cloud_path") contains JSONString(cpath.mkString("/","/","")))
+          (o("cloud_path") contains JSONString(cpath.mkString("/")))
       }
       val nall = all.filter(!self.contains(_))
       update("syncs",JSONArray(nall:_*))

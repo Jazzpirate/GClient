@@ -1,6 +1,6 @@
 {
   "timer":10000,
-  "chunksize": 2048,
+  "chunksize": 1048576,
   "service_port": 4444,
   "accounts": [],
   "mounts": [],

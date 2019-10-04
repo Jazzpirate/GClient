@@ -45,7 +45,7 @@ object Service {
         val id = m.hashCode()
         val fuse = new CloudFuse(account,cloud,id.toString,local)
         mounts::= fuse
-        fuse.mountCloud
+        NewThread { fuse.mountCloud() }
     }
     Settings.settings.getSyncs.foreach {
       case SyncedFolder(acc_id,local,cloud) =>

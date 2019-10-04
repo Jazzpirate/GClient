@@ -62,7 +62,7 @@ class AccountForm(acc:Account) extends AccountJava {
         val dir = JOptionPane.showInputDialog(mainPanel,"Pick a drive letter:","Mount Directory",
           JOptionPane.PLAIN_MESSAGE,null.asInstanceOf[Icon],valids,"D:")
         if (dir!=null) {
-          Settings.settings.addSync(Mount(acc.account_name, File(dir.asInstanceOf[String] + "\\\\"), cloud_path.toList))
+          Settings.settings.addSync(Mount(acc.account_name, File(dir.asInstanceOf[String] + "\\"), cloud_path.toList))
           Main.getBack(None)
         }
       } else {

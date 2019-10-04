@@ -1,11 +1,11 @@
 package com.jazzpirate.gclient.ui
 
-import java.awt.Dimension
+import java.awt.{Dimension, Insets}
 import java.awt.TrayIcon.MessageType
 import java.awt.event.{ActionEvent, ActionListener}
 import java.util.concurrent.ForkJoinPool
 
-import com.intellij.uiDesigner.core.GridConstraints
+import com.intellij.uiDesigner.core.{GridConstraints, GridLayoutManager}
 
 import scala.jdk.CollectionConverters._
 import com.jazzpirate.gclient.Settings
@@ -86,6 +86,13 @@ object Main extends MainJava {
     // reset
     btn_stop.setEnabled(false)
     clientBox.setSelected(false)
+    clientBox.setEnabled(true)
+    clientBox.addActionListener(new ActionListener {
+      override def actionPerformed(actionEvent: ActionEvent): Unit = {
+        socket
+        init
+      }
+    })
     hosts_pane.getComponents.foreach {
       case h: HostButton => hosts_pane.remove(h)
       case _ =>
@@ -107,13 +114,15 @@ object Main extends MainJava {
     if(!socket.killed) {
       clientBox.setSelected(true)
       btn_stop.setEnabled(true)
+      clientBox.setEnabled(false)
     }
 
     val syncs = Settings.settings.getMounts ::: Settings.settings.getSyncs
     if (syncs.nonEmpty) no_syncs_connected.setVisible(false)
+    connected_pane.setLayout(new GridLayoutManager(Math.max(syncs.size,1), 1, new Insets(0, 0, 0, 0), -1, -1))
     syncs.zipWithIndex.foreach {case (s,i) =>
       val sf = new SyncForm(s)
-      connected_pane.add(sf.panel,new GridConstraints(i, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(200, 200), null, 0, false))
+      connected_pane.add(sf.panel,new GridConstraints(i, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(150, 20), null, 0, true))
     }
 
     if (Settings.hosts.nonEmpty) no_hosts_available.setVisible(false)
