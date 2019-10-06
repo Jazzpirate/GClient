@@ -15,7 +15,7 @@ class DownloadBuffer(name:String,getStream:Long => (InputStream,Unit=>Unit)) {
   private val timing = Settings.timer
   private val chunksize = Settings.settings.getChunksize
 
-  def log(s:String) = println(Thread.currentThread().getName + " " + name + ": " + s)
+  private def log(s:String) = println(Thread.currentThread().getName + " " + name + ": " + s)
 
   private val arraymap = new ConcurrentLinkedHashMap.Builder[Long,Entry].initialCapacity(10).maximumWeightedCapacity(1000000).build()
 

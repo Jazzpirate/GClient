@@ -5,6 +5,7 @@ import java.nio.file.Paths
 import com.jazzpirate.gclient.hosts.{Account, CloudDirectory, CloudFile}
 import com.jazzpirate.gclient.ui.Main
 import info.kwarc.mmt.api.utils.File
+import info.kwarc.mmt.api.utils.time.Time
 import jnr.ffi.Platform.OS.WINDOWS
 import jnr.ffi.{Platform, Pointer}
 import jnr.ffi.types.{dev_t, gid_t, mode_t, off_t, size_t, u_int32_t, uid_t}
@@ -16,8 +17,19 @@ object FileNonExistent extends Throwable
 class CloudFuse(var account: Account, var root: List[String], var id: String, var mountFolder: File) extends FuseStubFS {
   def mountCloud(): Unit = {
     if (!this.mountFolder.toJava.exists && Platform.getNativePlatform.getOS != WINDOWS) this.mountFolder.toJava.mkdirs
-    this.mount(Paths.get(this.mountFolder.toString), true, false)
+    this.mount(Paths.get(this.mountFolder.toString), false, false)
   }
+
+  private def log(s:String) = println(Thread.currentThread().getName + " " + account.account_name + ": " + s)
+  private def measure[A](str: => String)(f : => A) = if (Main.debug) {
+    val s : String = str
+    val (t,a) = Time.measure {
+      log(s)
+      f
+    }
+    log("Finished " + t + ": " + s)
+    a
+  } else f
 
   private def getFromAccount(path: List[String]) = {
     // val buffer = scala.collection.JavaConverters.asScalaBuffer(Arrays.asList(path.split("\\/")))
@@ -32,6 +44,7 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
   }
 
   override def getattr(opath: String, stat: FileStat): Int = {
+    // if (Main.debug) log("getattr " + opath)
     val path = getPath(opath)
     try { // filemap(path)
       val f = getFromAccount(path)
@@ -56,48 +69,60 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
     0
   }
 
-  override def mkdir(path: String, @mode_t mode: Long) = {
+  override def mkdir(opath: String, @mode_t mode: Long) = measure("mkdir " + opath) {
     0
   }
 
-  override def unlink(path: String) = {
-    account.delete(path.split('/'):_*)
+  override def unlink(opath: String) = measure("unlink " + opath) {
+    account.delete(getPath(opath):_*)
     0
   }
 
-  override def rmdir(path: String) = {
+  override def rmdir(opath: String) = measure("rmdir " + opath) {
     0
   }
 
-  override def rename(path: String, newName: String) = {
+  override def rename(path: String, newName: String) = measure {"rename " + path + " to " + newName} {
     account.rename(getPath(newName),getPath(path):_*)
     0
   }
 
-  override def truncate(path: String, offset: Long) = {
+  override def truncate(path: String, offset: Long) = measure {"truncate " + path + ": " + offset} {
+    // getFromAccount(getPath(path)).setSize(offset)
+    account.upload_buffer.init(getPath(path),offset)
     0
   }
 
-  override def open(path: String, fi: FuseFileInfo) = {
+  override def open(path: String, fi: FuseFileInfo) = measure {"open " + path} {
     0
   }
 
-  override def read(path: String, buf: Pointer, @size_t size: Long, @off_t offset: Long, fi: FuseFileInfo) = {
+  override def read(path: String, buf: Pointer, @size_t size: Long, @off_t offset: Long, fi: FuseFileInfo) = measure {"read " + path + ": " + offset + "-" + (offset+size) } {
     val file = getFromAccount(getPath(path))
-    println(Thread.currentThread().getName + " reads " + file.name + " " + offset + ": " + size + " (file size " + file.size + ")")
+    // println(Thread.currentThread().getName + " reads " + file.name + " " + offset + ": " + size + " (file size " + file.size + ")")
     val toRead = Math.min(file.size - offset, size).toInt
     val ret = file.read(toRead,offset)
     buf.put(0,ret,0,ret.length)
     toRead
   }
 
+
+  private def present(arr:Array[Byte]) : String = new String(arr).replace("\n","\\n").replace("\r","\\r")
+    .replace("\t","\\t").replace("\f","\\f").replace("\b","\\b")
+
   override def write(path: String, buf: Pointer, @size_t size: Long, @off_t offset: Long, fi: FuseFileInfo) = try {
     //val maxWriteIndex = (offset + size).toInt
     val bytesToWrite = new Array[Byte](size.toInt)
     buf.get(0,bytesToWrite,0,size.toInt)
-    val ret = account.write(offset,bytesToWrite,getPath(path):_*).toInt
-    println(ret)
-    ret
+    measure { "write " + path + ": " + offset + " (size " + size + ") " + present(bytesToWrite) } {
+      /*
+        val ret = account.write(offset, bytesToWrite, getPath(path): _*).toInt
+        // println(ret)
+        ret
+       */
+      account.upload_buffer.addChunk(getPath(path),offset,bytesToWrite)
+      size.toInt
+    }
   } catch {
     case FileNonExistent =>
       -ErrorCodes.ENOENT
@@ -106,7 +131,7 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
       size.toInt
   }
 
-  override def statfs(path: String, stbuf: Statvfs): Int = {
+  override def statfs(path: String, stbuf: Statvfs): Int = measure("statfs " + path) {
     if (Platform.getNativePlatform.getOS eq WINDOWS) { // statfs needs to be implemented on Windows in order to allow for copying
       // data from other devices because winfsp calculates the volume size based
       // on the statvfs call.
@@ -123,14 +148,13 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
     super.statfs(path, stbuf)
   }
 
-  override def readdir(opath: String, buf: Pointer, filter: FuseFillDir, @off_t offset: Long, fi: FuseFileInfo): Int = {
+  override def readdir(opath: String, buf: Pointer, filter: FuseFillDir, @off_t offset: Long, fi: FuseFileInfo): Int = measure("readdir " + opath) {
     val path = getPath(opath)
     try {
       val f = getFromAccount(path).asInstanceOf[CloudDirectory]
       filter.apply(buf, ".", null, 0)
       filter.apply(buf, "..", null, 0)
       f.children.foreach((c: CloudFile) => filter.apply(buf, c.name, null, 0)) //(c => filter.apply(buf,c.name,null,0))
-      print("")
     } catch {
       case FileNonExistent =>
         return -ErrorCodes.ENOENT
@@ -141,7 +165,7 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
     0
   }
 
-  override def create(path: String, @mode_t mode: Long, fi: FuseFileInfo): Int = {
+  override def create(path: String, @mode_t mode: Long, fi: FuseFileInfo): Int = measure("create " + path) {
     if(path.startsWith("/.Trash-1000")) return 0
     try {
       getFromAccount(getPath(path))

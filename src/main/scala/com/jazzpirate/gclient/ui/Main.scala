@@ -20,11 +20,11 @@ object Main extends MainJava {
   // implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(new ForkJoinPool(100))
   val debug = true
 
-  private var _socket :Server = _
+  @volatile private var _socket :Server = _
   def socket : Server = {
-      if (synchronized {_socket} == null) {
+      if (_socket == null) {
         val ns = newSocket
-        synchronized{_socket = ns}
+        _socket = ns
       }
       _socket
   }

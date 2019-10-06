@@ -29,16 +29,26 @@ object Settings {
 abstract class AbstractSettings(settings_file:File) {
   val sf = settings_file
   if (!sf.exists()) sf.mkdirs()
-  sf
-  private var _json = JSON.parse(File.read(settings_file)).asInstanceOf[JSONObject]
-  protected def getJson = _json
-  protected def update(key:String,value:JSON) = synchronized {
-    val nmap = getJson.map.map {
-      case (JSONString(`key`),_) => (JSONString(key),value)
-      case p => p
+
+  @volatile private var _json = JSON.parse(File.read(settings_file)).asInstanceOf[JSONObject]
+  def getJson = _json
+  def update(key:String,value:JSON) = {
+    if (key != "" && value != null) {
+      var existed = false
+      val nmap1 = getJson.map.map {
+        case (JSONString(`key`), _) =>
+          existed = true
+          (JSONString(key), value)
+        case p => p
+      }
+      val nmap = if (existed) nmap1 else (JSONString(key),value) :: nmap1
+      _json = JSONObject(nmap)
+      File.write(settings_file, _json.toString)
+    } else if (value == null) {
+      _json = JSONObject(getJson.map.filter(_._1 != JSONString(key)))
+      File.write(settings_file, _json.toString)
     }
-    File.write(settings_file,JSONObject(nmap).toString)
-    _json = JSONObject(nmap)
+    else _json = JSON.parse(File.read(settings_file)).asInstanceOf[JSONObject]
   }
 }
 

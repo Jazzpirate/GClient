@@ -13,14 +13,14 @@ trait MySocket {
 }
 
 abstract class SocketClient(val socket:Socket) extends MySocket {
-  private var _killed = false
+  @volatile private var _killed = false
 
-  def kill = synchronized {
+  def kill = {
     _killed = true
   }
 
   NewThread {
-    while(!synchronized{_killed}) {
+    while(!_killed) {
       val inp = in.readLine()
       if (inp == null) kill else process(inp)
     }
@@ -32,16 +32,16 @@ abstract class SocketServer(port:Int) extends MySocket {
     new Socket("localhost",port)
   } catch {
     case _:java.net.ConnectException =>
-      synchronized{_killed = true}
+      _killed = true
       null
   }
 
-  def onKill = synchronized{
+  def onKill = {
     _killed = true
   }
 
   private var _killed = false
-  def killed = synchronized{
+  def killed = {
     _killed
   }
 
@@ -51,7 +51,7 @@ abstract class SocketServer(port:Int) extends MySocket {
     while(!_killed) {
       val inp = in.readLine()
       if (inp == null) {
-        synchronized {
+        {
           _killed = false
         }
         onKill

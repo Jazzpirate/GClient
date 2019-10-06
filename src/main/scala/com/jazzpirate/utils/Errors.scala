@@ -23,6 +23,10 @@ class ExceptionHandler extends Thread.UncaughtExceptionHandler {
       handle(e.getException)
     case e:java.util.concurrent.ExecutionException =>
       handle(e.getCause)
+      /*
+    case e:com.google.api.client.googleapis.json.GoogleJsonResponseException =>
+      throw e
+       */
     case t:Throwable =>
       JOptionPane.showMessageDialog(mainPanel,t.getMessage + "\n\n" + t.getStackTrace.toList.mkString("\n"),"Error",0)
       System.exit(0)

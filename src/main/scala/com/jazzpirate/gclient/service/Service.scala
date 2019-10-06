@@ -10,31 +10,29 @@ import com.jazzpirate.utils.{ExceptionHandler, NewThread, SocketClient}
 object Service {
   // implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(new ForkJoinPool(100))
   lazy val socket = new ServerSocket(Settings.settings.getServicePort)
-  private var clients : List[Client] = Nil
+  @volatile private var clients : List[Client] = Nil
 
-  private var mounts : List[CloudFuse] = Nil
+  @volatile private var mounts : List[CloudFuse] = Nil
 
   private def listenThread = {
     NewThread {
-      synchronized {threadRunning = true}
+      threadRunning = true
       while(true) {
         val newclient = socket.accept()
         val cl = new Client(newclient)
-        synchronized {
           clients ::= cl
-        }
       }
     }
   }
 
-  private var threadRunning = false
+  @volatile private var threadRunning = false
 
   def main(args: Array[String]) = try {
     listenThread
-    while (!synchronized{threadRunning}) {
+    while (!threadRunning) {
       Thread.sleep(100)
     }
-    if (args.headOption contains "await") while(synchronized{clients}.isEmpty) {
+    if (args.headOption contains "await") while(clients.isEmpty) {
       Thread.sleep(100)
     }
     Settings.settings.getMounts.foreach {

@@ -1,6 +1,7 @@
 package com.jazzpirate.gclient.hosts
 
 import com.jazzpirate.gclient.ui.NewAccount
+import com.jazzpirate.utils.{Upload, UploadBuffer}
 import javax.swing.{JPanel, JTextField}
 
 abstract class Host {
@@ -23,6 +24,9 @@ abstract class Account(val host:Host) {
   def rename(newname:List[String],path:String*):CloudFile
   def delete(path : String*) : Unit
   def write(off:Long,content:Array[Byte],path:String*) : Long
+  def upload(ul:Upload) : Unit
+
+  lazy val upload_buffer = new UploadBuffer(this)
 }
 
 abstract class CloudFile {
@@ -31,6 +35,10 @@ abstract class CloudFile {
   def size:Long
 
   def read(size:Long,offset:Long):Array[Byte]
+
+
+  protected var _futuresize : Long = 0
+  def setSize(size:Long) = _futuresize = size
 }
 
 trait CloudDirectory extends CloudFile {
