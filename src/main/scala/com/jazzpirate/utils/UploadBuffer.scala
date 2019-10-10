@@ -8,9 +8,12 @@ import com.jazzpirate.gclient.hosts.Account
 import info.kwarc.mmt.api.utils.{File, JSONInt, JSONObject, JSONString}
 
 abstract class Upload(val path:List[String]) {
-  @volatile protected var _size : Long = 0
+  @volatile protected var _size : Long = -1
 
-  def setSize(size:Long) = _size = size
+  def setSize(size:Long) = {
+    touch
+    _size = size
+  }
   def getSize = _size
   def addChunk(offset:Long,chunk:Array[Byte]) : Unit
   @volatile protected var _current : Long = 0
@@ -20,6 +23,20 @@ abstract class Upload(val path:List[String]) {
 
   @volatile var curr_upload : Long = 0
   def getNext(off : Option[Long] = None) : Array[Byte]
+
+  def doDone: Unit
+
+  private var timer = System.currentTimeMillis()
+  protected def touch = timer = System.currentTimeMillis()
+
+  NewThread {
+    touch
+    while (!done && System.currentTimeMillis() - timer < 10000) {
+      Thread.sleep(1000)
+    }
+    if (!done) _size = _current
+    doDone
+  }
 }
 
 class UploadBuffer(acc:Account) {
@@ -40,7 +57,8 @@ class UploadBuffer(acc:Account) {
   if (!chunk_folder.exists()) chunk_folder.mkdirs()
 
   class UploadEntry(path:List[String]) extends Upload(path) {
-    def addChunk(offset:Long,chunk:Array[Byte]) : Unit = scala.concurrent.blocking { synchronized {
+    def addChunk(offset:Long,chunk:Array[Byte]) : Unit = { touch; scala.concurrent.blocking { synchronized {
+      touch
       val file = chunk_folder / (path.hashCode() + offset.hashCode()).toString
       val os = new FileOutputStream(file.toJava)
       os.write(chunk)
@@ -49,11 +67,12 @@ class UploadBuffer(acc:Account) {
       val no = JSONObject(("filename",JSONString(file.name.toString)),("size",JSONInt(chunk.length)))
       _chunks ::= (offset.toString,no)
       _current += chunk.length
-      if (done) {
-        MySettings.update(path.mkString("/"),JSONObject(_chunks :_*))
-        acc.upload(this)
-      }
-    } }
+    } } }
+
+    override def doDone: Unit = {
+      MySettings.update(path.mkString("/"),JSONObject(_chunks :_*))
+      acc.upload(this)
+    }
 
     @volatile private var _chunks : List[(String,JSONObject)] = Nil
 
@@ -95,6 +114,11 @@ class UploadBuffer(acc:Account) {
   }
 
   def addChunk(path:List[String],offset:Long,chunk:Array[Byte]) = {
+    var p = files.get(path)
+    if (p == null) {
+      p = new UploadEntry(path)
+      files.put(path,p)
+    }
     files.get(path).addChunk(offset,chunk)
   }
 
