@@ -497,7 +497,6 @@ class GDrive(val account_name : String) extends Account(Google) {
         throw FileNonExistent
     }
   } catch {
-    case FileNonExistent => throw FileNonExistent
     case t:Throwable =>
       t.printStackTrace()
       throw t

@@ -7,7 +7,8 @@ import com.jazzpirate.gclient.{AbstractSettings, Settings}
 import com.jazzpirate.gclient.hosts.Account
 import info.kwarc.mmt.api.utils.{File, JSONInt, JSONObject, JSONString}
 
-abstract class Upload(val path:List[String]) {
+abstract class Upload(initpath:List[String]) {
+  @volatile var path : List[String] = initpath
   @volatile protected var _size : Long = -1
 
   def setSize(size:Long) = {
@@ -56,7 +57,7 @@ class UploadBuffer(acc:Account) {
   val chunk_folder = folder / "upload"
   if (!chunk_folder.exists()) chunk_folder.mkdirs()
 
-  class UploadEntry(path:List[String]) extends Upload(path) {
+  class UploadEntry(opath:List[String]) extends Upload(opath) {
     def addChunk(offset:Long,chunk:Array[Byte]) : Unit = { touch; scala.concurrent.blocking { synchronized {
       touch
       val file = chunk_folder / (path.hashCode() + offset.hashCode()).toString
@@ -77,9 +78,16 @@ class UploadBuffer(acc:Account) {
     @volatile private var _chunks : List[(String,JSONObject)] = Nil
 
     def finish = {
-      val curr = MySettings.getFile(path).get
+      // val curr = MySettings.getFile(path).get
       MySettings.update(path.mkString("/"),null)
       files.remove(path)
+    }
+
+    def rename(np:List[String]) = {
+      val curr = MySettings.getFile(path).get
+      MySettings.update(path.mkString("/"),null)
+      path = np
+      MySettings.update(path.mkString("/"),curr)
     }
 
     def getNext(off : Option[Long] = None) : Array[Byte] = {
@@ -130,6 +138,13 @@ class UploadBuffer(acc:Account) {
       val entry = new UploadEntry(path)
       files.put(path,entry)
       acc.upload(entry)
+  }
+
+  def rename(oldp:List[String],newp:List[String]) = {
+    val old = files.get(oldp)
+    if (old != null) {
+      old.rename(newp)
+    }
   }
 
   import scala.jdk.CollectionConverters._

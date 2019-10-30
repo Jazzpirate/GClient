@@ -60,7 +60,7 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
         stat.st_gid.set(getContext.gid.get)
       }
     } catch {
-      case FileNonExistent =>
+      case FileNonExistent | _ : FileNonExistent.type =>
         return -ErrorCodes.ENOENT
       case t : Throwable =>
         t.printStackTrace()
@@ -84,6 +84,7 @@ class CloudFuse(var account: Account, var root: List[String], var id: String, va
 
   override def rename(path: String, newName: String) = measure {"rename " + path + " to " + newName} {
     account.rename(getPath(newName),getPath(path):_*)
+    account.upload_buffer.rename(getPath(path),getPath(newName))
     0
   }
 
